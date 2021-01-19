@@ -4,7 +4,7 @@ import './App.css';
 import {
   OfflineProvider,
   useQueue,
-  useQueueSize,
+  useQueueLength,
   useRegister,
 } from './offline';
 import { useOnlineStatus } from './offline-hooks';
@@ -47,7 +47,7 @@ function UserInterface({}: UserInterfaceProps) {
   }
 
   const queue = useQueue();
-  const queueSize = useQueueSize();
+  const queueSize = useQueueLength();
   const { register, unregister } = useRegister();
 
   const online = useOnlineStatus();
@@ -60,19 +60,17 @@ function UserInterface({}: UserInterfaceProps) {
     };
   }, []);
 
+  async function handleAddRecording() {
+    await queue('recordData', {
+      id: Date.now(),
+      value: (clickCounter % (15 + 1)) + 10,
+    });
+    setClickCounter((p) => p + 1);
+  }
+
   return (
     <>
-      <button
-        onClick={() => {
-          queue('recordData', {
-            id: Date.now(),
-            value: Math.round(Math.random() * 15 + 10),
-          });
-          setClickCounter((p) => p + 1);
-        }}
-      >
-        add recording
-      </button>
+      <button onClick={handleAddRecording}>add recording</button>
       <hr />
       {data && data.length > 0 ? (
         <>

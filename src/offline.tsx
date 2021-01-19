@@ -1,6 +1,7 @@
 import React, {
   createContext,
   ReactChildren,
+  Ref,
   useContext,
   useEffect,
   useRef,
@@ -8,12 +9,23 @@ import React, {
 } from 'react';
 import { useOnlineStatus } from './offline-hooks';
 
+enum QueueResultMode {
+  online = 'online',
+  offline = 'offline',
+}
+
+interface QueueResult {
+  mode: QueueResultMode;
+  element: QueueElement;
+}
+
 interface OfflineContextValue {
   register(key: string, fn: Function): void;
   unregister(key: string): void;
-  queue(key: string, data: any): void;
+  queue(key: string, data: any): Promise<void>;
 
-  queueList: QueueList;
+  queueRef: Ref<QueueList>;
+  queueLength: number;
 }
 
 const OfflineContext = createContext<OfflineContextValue | null>(null);
@@ -35,7 +47,6 @@ enum QueueStatus {
 interface QueueElement {
   key: string;
   data: any;
-  status: QueueStatus;
 }
 
 type QueueList = QueueElement[];
@@ -50,7 +61,7 @@ function inflate() {
     const data = JSON.parse(content);
     return data;
   }
-  return null;
+  return [];
 }
 
 interface Props {
@@ -77,82 +88,116 @@ export function OfflineProvider({ children }: Props) {
     delete mapRef.current[key];
   }
 
-  function queue(key: string, data: any) {
+  async function queue(key: string, data: any): Promise<QueueResult> {
     if (!mapRef.current[key]) {
       throw new Error(`no mapping for ${key}`);
     }
 
-    const el: QueueElement = {
+    const element: QueueElement = {
       key,
       data,
-      status: QueueStatus.pending,
     };
 
+    let mode = QueueResultMode.online;
+    if (online) {
+      await mapRef.current[element.key].fn(element.data);
+      mode = QueueResultMode.online;
+    } else {
+      queueRef.current.push(element);
+      mode = QueueResultMode.offline;
+    }
+
     setCounter((p) => p + 1);
-    setQueueList((p) => [...p, el]);
+    return { mode, element };
   }
 
-  async function drainQueue() {
-    const copy = [...queueList];
-  }
+  async function dequeue() {
+    const copyQueue = [...queueRef.current];
 
-  async function process() {
-    for (const element of queueList) {
-      if (
-        mapRef.current[element.key] &&
-        element.status === QueueStatus.pending
-      ) {
+    for (const element of copyQueue) {
+      if (mapRef.current[element.key]) {
         try {
+          console.log('trying to process element', element);
           await mapRef.current[element.key].fn(element.data);
 
-          // is this OK
-          // mutate a reference inside of an array tracked by
-          // useState seems very bad
-          element.status = QueueStatus.done;
-
-          persist(queueList);
+          queueRef.current.shift();
+          setCounter((p) => p + 1);
         } catch (err) {
           console.error(err);
         }
       }
     }
 
-    // filters the list so it does not grow too big with all of these done entries
-    const pendingQueueList = queueList.filter(
-      (el) => el.status === QueueStatus.pending,
-    );
-    setQueueList(pendingQueueList);
-    persist(pendingQueueList);
+    // setCounter((p) => p + 1);
   }
 
+  // async function process() {
+  //   for (const element of queueList) {
+  //     if (
+  //       mapRef.current[element.key] &&
+  //       element.status === QueueStatus.pending
+  //     ) {
+  //       try {
+  //         await mapRef.current[element.key].fn(element.data);
+
+  //         // is this OK
+  //         // mutate a reference inside of an array tracked by
+  //         // useState seems very bad
+  //         element.status = QueueStatus.done;
+
+  //         persist(queueList);
+  //       } catch (err) {
+  //         console.error(err);
+  //       }
+  //     }
+  //   }
+
+  //   // filters the list so it does not grow too big with all of these done entries
+  //   const pendingQueueList = queueList.filter(
+  //     (el) => el.status === QueueStatus.pending,
+  //   );
+  //   setQueueList(pendingQueueList);
+  //   persist(pendingQueueList);
+  // }
+
   useEffect(() => {
+    if (!inflated) {
+      console.info('offline provider: (persist) queue not inflated yet');
+      return;
+    }
+
+    persist(queueRef.current);
+  }, [counter]);
+
+  useEffect(() => {
+    if (!inflated) {
+      console.info('offline provider: (dequeue) queue not inflated yet');
+      return;
+    }
+
     if (!online) {
       console.info('offline provider: not online');
       return;
     }
 
-    if (!inflated) {
-      console.info('offline provider: queue not inflated yet');
-      return;
-    }
-
-    persist(queueList);
-    process().then(() => {
+    dequeue().then(() => {
       console.info('offline provider: processing done');
     });
-  }, [counter, online]);
+  }, [online, inflated]);
 
   useEffect(() => {
     const stored = inflate();
     if (stored) {
       setInflated(true);
       setCounter((p) => p + 1);
-      setQueueList(stored);
+      queueRef.current = stored;
       console.info('offline provider: queue inflated');
     }
   }, []);
 
-  const value = { queueList, queue, register, unregister };
+  const queueLength = queueRef.current.length;
+
+  const value = { queueRef, queue, register, unregister, queueLength };
 
   return (
     <OfflineContext.Provider value={value}>{children}</OfflineContext.Provider>
@@ -174,7 +219,7 @@ export function useRegister() {
   return { register, unregister };
 }
 
-export function useQueueSize() {
-  const { queueList } = useOfflineQueue();
-  return queueList.length;
+export function useQueueLength() {
+  const { queueLength } = useOfflineQueue();
+  return queueLength;
 }

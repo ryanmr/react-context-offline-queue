@@ -59,6 +59,7 @@ interface Props {
 export function OfflineProvider({ children }: Props) {
   const online = useOnlineStatus();
   const mapRef = useRef<Mapping>({});
+  const queueRef = useRef<QueueList>([]);
 
   const [counter, setCounter] = useState(0);
   const [inflated, setInflated] = useState(false);
@@ -89,6 +90,10 @@ export function OfflineProvider({ children }: Props) {
 
     setCounter((p) => p + 1);
     setQueueList((p) => [...p, el]);
+  }
+
+  async function drainQueue() {
+    const copy = [...queueList];
   }
 
   async function process() {

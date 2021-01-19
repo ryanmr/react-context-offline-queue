@@ -10,8 +10,7 @@ const todosSlice = createSlice({
   name: 'data',
   initialState: [] as Data[],
   reducers: {
-    addData(state, action) {
-      const { id, value } = action.payload;
+    addData(state, { payload: { id, value } }) {
       const val = { id, value, createdAt: new Date().toISOString() };
       state.push(val);
     },

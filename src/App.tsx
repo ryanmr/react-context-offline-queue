@@ -8,8 +8,9 @@ import {
   useRegister,
 } from './offline';
 import { useOnlineStatus } from './offline-hooks';
-import { Provider, useDispatch } from 'react-redux';
-import { store } from './store/store';
+import { Provider, useDispatch, useSelector } from 'react-redux';
+import { RootState, store } from './store/store';
+import { addData } from './store/data-slice';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -35,17 +36,14 @@ function App({}: AppProps) {
 
 interface UserInterfaceProps {}
 function UserInterface({}: UserInterfaceProps) {
-  const [x, setX] = useState(-10);
-  const [y, setY] = useState(10);
+  const [clickCounter, setClickCounter] = useState(0);
+
+  const data = useSelector((state: RootState) => state.data);
+  const dispatch = useDispatch();
 
   async function doX(data: any) {
     await delay(250 + Math.random() * 1000);
-    setX((p) => p + data.value);
-  }
-
-  async function doY(data: any) {
-    await delay(250 + Math.random() * 1000);
-    setY((p) => p + data.value);
+    dispatch(addData({ id: data.id, value: data.value }));
   }
 
   const queue = useQueue();
@@ -55,12 +53,10 @@ function UserInterface({}: UserInterfaceProps) {
   const online = useOnlineStatus();
 
   useEffect(() => {
-    register('addx', doX);
-    register('addy', doY);
+    register('recordData', doX);
 
     return () => {
-      unregister('addx');
-      unregister('addy');
+      unregister('recordData');
     };
   }, []);
 
@@ -68,22 +64,32 @@ function UserInterface({}: UserInterfaceProps) {
     <>
       <button
         onClick={() => {
-          queue('addx', { value: 1 });
+          queue('recordData', {
+            id: Date.now(),
+            value: Math.round(Math.random() * 15 + 10),
+          });
+          setClickCounter((p) => p + 1);
         }}
       >
-        add x
-      </button>
-      <button
-        onClick={() => {
-          queue('addy', { value: 1 });
-        }}
-      >
-        add y
+        add recording
       </button>
       <hr />
-      <p>x: {x}</p>
-      <p>y: {y}</p>
+      {data && data.length > 0 ? (
+        <>
+          <div>size: {data.length}</div>
+          <div>
+            {data.map((d) => (
+              <div key={d.id}>
+                {d.id}: {d.value}
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p>no data</p>
+      )}
       <hr />
+      <p>click count: {clickCounter}</p>
       <p>online: {online ? 'true' : 'false'}</p>
       <p>queue size: {queueSize}</p>
     </>

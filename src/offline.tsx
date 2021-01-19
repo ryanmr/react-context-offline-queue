@@ -9,9 +9,11 @@ import React, {
 import { useOnlineStatus } from './offline-hooks';
 
 interface OfflineContextValue {
-  // register(key: string, fn: Function): void;
-  // unregister(key: string): void;
+  register(key: string, fn: Function): void;
+  unregister(key: string): void;
   queue(key: string, data: any): void;
+
+  queueList: QueueList;
 }
 
 const OfflineContext = createContext<OfflineContextValue | null>(null);
@@ -52,31 +54,30 @@ function inflate() {
 }
 
 interface Props {
-  registeration: Mapping;
   children: React.ReactNode;
 }
-export function OfflineProvider({ registeration, children }: Props) {
+export function OfflineProvider({ children }: Props) {
   const online = useOnlineStatus();
-  // const mapRef = useRef<Mapping>({});
+  const mapRef = useRef<Mapping>({});
 
   const [counter, setCounter] = useState(0);
   const [inflated, setInflated] = useState(false);
   const [queueList, setQueueList] = useState<QueueList>([]);
 
-  // function register(key: string, fn: Function) {
-  //   const el: MappingElement = {
-  //     key,
-  //     fn,
-  //   };
-  //   mapRef.current[key] = el;
-  // }
+  function register(key: string, fn: Function) {
+    const el: MappingElement = {
+      key,
+      fn,
+    };
+    mapRef.current[key] = el;
+  }
 
-  // function unregister(key: string) {
-  //   delete mapRef.current[key];
-  // }
+  function unregister(key: string) {
+    delete mapRef.current[key];
+  }
 
   function queue(key: string, data: any) {
-    if (!registeration[key]) {
+    if (!mapRef.current[key]) {
       throw new Error(`no mapping for ${key}`);
     }
 
@@ -93,11 +94,11 @@ export function OfflineProvider({ registeration, children }: Props) {
   async function process() {
     for (const element of queueList) {
       if (
-        registeration[element.key] &&
+        mapRef.current[element.key] &&
         element.status === QueueStatus.pending
       ) {
         try {
-          await registeration[element.key].fn(element.data);
+          await mapRef.current[element.key].fn(element.data);
 
           // is this OK
           // mutate a reference inside of an array tracked by
@@ -116,6 +117,7 @@ export function OfflineProvider({ registeration, children }: Props) {
       (el) => el.status === QueueStatus.pending,
     );
     setQueueList(pendingQueueList);
+    persist(pendingQueueList);
   }
 
   useEffect(() => {
@@ -145,14 +147,29 @@ export function OfflineProvider({ registeration, children }: Props) {
     }
   }, []);
 
-  const value = { queue };
+  const value = { queueList, queue, register, unregister };
 
   return (
     <OfflineContext.Provider value={value}>{children}</OfflineContext.Provider>
   );
 }
 
-export function useOffline() {
+export function useOfflineQueue() {
   const context = useContext(OfflineContext) as OfflineContextValue;
   return context;
+}
+
+export function useQueue() {
+  const { queue } = useOfflineQueue();
+  return queue;
+}
+
+export function useRegister() {
+  const { register, unregister } = useOfflineQueue();
+  return { register, unregister };
+}
+
+export function useQueueSize() {
+  const { queueList } = useOfflineQueue();
+  return queueList.length;
 }

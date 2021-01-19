@@ -1,8 +1,15 @@
 import delay from 'delay';
 import React, { useState, useEffect, ReactChildren, useRef } from 'react';
 import './App.css';
-import { OfflineProvider, useOffline } from './offline';
+import {
+  OfflineProvider,
+  useQueue,
+  useQueueSize,
+  useRegister,
+} from './offline';
 import { useOnlineStatus } from './offline-hooks';
+import { Provider, useDispatch } from 'react-redux';
+import { store } from './store/store';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -14,6 +21,20 @@ function Providers({ children }: ProvidersProps) {
 
 interface AppProps {}
 function App({}: AppProps) {
+  return (
+    <Provider store={store}>
+      <OfflineProvider>
+        <div className="App">
+          {/* pretend this is a route screen */}
+          <UserInterface />
+        </div>
+      </OfflineProvider>
+    </Provider>
+  );
+}
+
+interface UserInterfaceProps {}
+function UserInterface({}: UserInterfaceProps) {
   const [x, setX] = useState(-10);
   const [y, setY] = useState(10);
 
@@ -27,27 +48,22 @@ function App({}: AppProps) {
     setY((p) => p + data.value);
   }
 
-  const registeration = {
-    addx: { key: 'addx', fn: doX },
-    addy: { key: 'addy', fn: doY },
-  };
+  const queue = useQueue();
+  const queueSize = useQueueSize();
+  const { register, unregister } = useRegister();
 
-  return (
-    <OfflineProvider registeration={registeration}>
-      <div className="App">
-        <UserInterface x={x} y={y} />
-      </div>
-    </OfflineProvider>
-  );
-}
-
-interface UserInterfaceProps {
-  x: number;
-  y: number;
-}
-function UserInterface({ x, y }: UserInterfaceProps) {
-  const { queue } = useOffline();
   const online = useOnlineStatus();
+
+  useEffect(() => {
+    register('addx', doX);
+    register('addy', doY);
+
+    return () => {
+      unregister('addx');
+      unregister('addy');
+    };
+  }, []);
+
   return (
     <>
       <button
@@ -69,6 +85,7 @@ function UserInterface({ x, y }: UserInterfaceProps) {
       <p>y: {y}</p>
       <hr />
       <p>online: {online ? 'true' : 'false'}</p>
+      <p>queue size: {queueSize}</p>
     </>
   );
 }

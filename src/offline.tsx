@@ -22,7 +22,7 @@ interface QueueResult {
 interface OfflineContextValue {
   register(key: string, fn: Function): void;
   unregister(key: string): void;
-  queue(key: string, data: any): Promise<void>;
+  queue(key: string, data: any): Promise<QueueResult>;
 
   queueRef: Ref<QueueList>;
   queueLength: number;
@@ -130,35 +130,6 @@ export function OfflineProvider({ children }: Props) {
 
     // setCounter((p) => p + 1);
   }
-
-  // async function process() {
-  //   for (const element of queueList) {
-  //     if (
-  //       mapRef.current[element.key] &&
-  //       element.status === QueueStatus.pending
-  //     ) {
-  //       try {
-  //         await mapRef.current[element.key].fn(element.data);
-
-  //         // is this OK
-  //         // mutate a reference inside of an array tracked by
-  //         // useState seems very bad
-  //         element.status = QueueStatus.done;
-
-  //         persist(queueList);
-  //       } catch (err) {
-  //         console.error(err);
-  //       }
-  //     }
-  //   }
-
-  //   // filters the list so it does not grow too big with all of these done entries
-  //   const pendingQueueList = queueList.filter(
-  //     (el) => el.status === QueueStatus.pending,
-  //   );
-  //   setQueueList(pendingQueueList);
-  //   persist(pendingQueueList);
-  // }
 
   useEffect(() => {
     if (!inflated) {

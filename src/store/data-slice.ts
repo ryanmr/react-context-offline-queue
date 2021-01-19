@@ -14,9 +14,12 @@ const todosSlice = createSlice({
       const val = { id, value, createdAt: new Date().toISOString() };
       state.push(val);
     },
+    clearData(state) {
+      state.length = 0;
+    },
   },
 });
 
-export const { addData } = todosSlice.actions;
+export const { addData, clearData } = todosSlice.actions;
 
 export const { reducer } = todosSlice;

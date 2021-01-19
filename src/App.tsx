@@ -10,7 +10,7 @@ import {
 import { useOnlineStatus } from './offline-hooks';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { RootState, store } from './store/store';
-import { addData } from './store/data-slice';
+import { addData, clearData } from './store/data-slice';
 
 interface ProvidersProps {
   children: React.ReactNode;
@@ -27,18 +27,23 @@ function App({}: AppProps) {
       <OfflineProvider>
         <div className="App">
           {/* pretend this is a route screen */}
-          <UserInterface />
+          <OfflineQueueUi />
+          <hr />
+          <OfflineActionWidget />
+          <hr />
+          <GlobalStateStoreWidget />
         </div>
       </OfflineProvider>
     </Provider>
   );
 }
 
-interface UserInterfaceProps {}
-function UserInterface({}: UserInterfaceProps) {
-  const [clickCounter, setClickCounter] = useState(0);
+interface OfflineQueueUiProps {}
+function OfflineQueueUi({}: OfflineQueueUiProps) {
+  const online = useOnlineStatus();
+  const { register, unregister } = useRegister();
+  const queueSize = useQueueLength();
 
-  const data = useSelector((state: RootState) => state.data);
   const dispatch = useDispatch();
 
   async function doX(data: any) {
@@ -46,12 +51,7 @@ function UserInterface({}: UserInterfaceProps) {
     dispatch(addData({ id: data.id, value: data.value }));
   }
 
-  const queue = useQueue();
-  const queueSize = useQueueLength();
-  const { register, unregister } = useRegister();
-
-  const online = useOnlineStatus();
-
+  // register the actions
   useEffect(() => {
     register('recordData', doX);
 
@@ -59,6 +59,20 @@ function UserInterface({}: UserInterfaceProps) {
       unregister('recordData');
     };
   }, []);
+
+  return (
+    <>
+      <p>This is debug info.</p>
+      <p>online: {online ? 'true' : 'false'}</p>
+      <p>queue size: {queueSize}</p>
+    </>
+  );
+}
+
+function OfflineActionWidget() {
+  const queue = useQueue();
+
+  const [clickCounter, setClickCounter] = useState(0);
 
   async function handleAddRecording() {
     await queue('recordData', {
@@ -69,14 +83,47 @@ function UserInterface({}: UserInterfaceProps) {
   }
 
   return (
-    <>
-      <button onClick={handleAddRecording}>add recording</button>
-      <hr />
+    <div>
+      <p>
+        This widget represents a screen that submits some data via xhr to a
+        server. This is simulated in this example.
+      </p>
+      <div>
+        <button onClick={handleAddRecording}>add recording</button>
+      </div>
+      <p>click count: {clickCounter}</p>
+    </div>
+  );
+}
+
+function GlobalStateStoreWidget() {
+  const dispatch = useDispatch();
+  const data = useSelector((state: RootState) => state.data);
+
+  function handleClear(event: Event) {
+    event.preventDefault();
+    dispatch(clearData());
+  }
+
+  return (
+    <div>
+      <p>
+        This widget represents some ui component that is powered by state from
+        redux.
+      </p>
+      <p>
+        This one is rendering a list of objects, with a tsid and an arbitrary
+        value. You can{' '}
+        <a href="#" onClick={handleClear}>
+          clear this list
+        </a>
+        .
+      </p>
       {data && data.length > 0 ? (
         <>
           <div>size: {data.length}</div>
           <div>
-            {data.map((d) => (
+            {[...data].reverse().map((d) => (
               <div key={d.id}>
                 {d.id}: {d.value}
               </div>
@@ -86,11 +133,7 @@ function UserInterface({}: UserInterfaceProps) {
       ) : (
         <p>no data</p>
       )}
-      <hr />
-      <p>click count: {clickCounter}</p>
-      <p>online: {online ? 'true' : 'false'}</p>
-      <p>queue size: {queueSize}</p>
-    </>
+    </div>
   );
 }
 

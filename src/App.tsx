@@ -1,6 +1,5 @@
 import delay from 'delay';
 import React, { useState, useEffect, ReactChildren, useRef } from 'react';
-import './App.css';
 import {
   OfflineProvider,
   useQueue,

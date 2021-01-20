@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import App from './App';
 import './index.css';
+import { register } from './serviceWorkerRegistration';
 
 ReactDOM.render(
   <React.StrictMode>
@@ -15,3 +16,7 @@ ReactDOM.render(
 if (import.meta.hot) {
   import.meta.hot.accept();
 }
+
+// service worker register point
+// turned off until they work
+// register();

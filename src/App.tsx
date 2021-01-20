@@ -100,7 +100,7 @@ function GlobalStateStoreWidget() {
   const dispatch = useDispatch();
   const data = useSelector((state: RootState) => state.data);
 
-  function handleClear(event: Event) {
+  function handleClear(event: React.MouseEvent) {
     event.preventDefault();
     dispatch(clearData());
   }
